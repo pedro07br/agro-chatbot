@@ -33,6 +33,8 @@ O AgroBot responde perguntas em linguagem natural sobre o agronegócio brasileir
 
 ## 🏗️ Arquitetura
 
+```
+
 Usuário → Telegram → FastAPI → Gemini 2.5 Flash (Tool Calling)
 │
 ┌─────────────────┼─────────────────┐
@@ -43,6 +45,8 @@ IBGE SIDRA          IBGE PAM            CONAB
 │
 ▼
 MySQL (cache + histórico)
+
+```
 
 ---
 
