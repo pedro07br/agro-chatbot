@@ -23,9 +23,8 @@ O AgroBot responde perguntas em linguagem natural sobre o agronegócio brasileir
 |--------|-----------|-------|
 | Produção de commodities | Quantidade produzida, área plantada e valor por ano | IBGE SIDRA |
 | Histórico de produção | Evolução da produção entre dois anos | IBGE SIDRA |
-| Produção por estado | Dados por cultura e estado brasileiro | IBGE PAM |
-| Previsão de safras | Acompanhamento e estimativas de colheita | CONAB |
-| Estoques nacionais | Disponibilidade e reservas por cultura | CONAB |
+| Produção por estado | Dados por cultura e estado brasileiro | IBGE SIDRA PAM |
+| Comparativo anual | Comparação da produção entre dois anos | IBGE SIDRA |
 
 **Commodities disponíveis:**
 `soja` `milho` `cafe` `algodao` `cana_de_acucar` `arroz` `feijao` `trigo` `mandioca` `laranja` `banana`

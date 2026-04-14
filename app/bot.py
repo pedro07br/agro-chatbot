@@ -26,18 +26,17 @@ async def handle_update(update: Update):
         await bot.send_message(
             chat_id=chat_id,
             text=(
-                f"👋 Olá, {user_name}! Eu sou o *AgroBot*.\n\n"
+                f"Olá, {user_name}! Eu sou o AgroBot.\n\n"
                 "Sou especializado em dados do agronegócio brasileiro. "
                 "Posso te ajudar com:\n\n"
-                "🌱 *Produção agrícola* por cultura e estado\n"
-                "📦 *Exportações* de commodities (soja, milho, café...)\n"
-                "📈 *Histórico de preços* de exportação\n"
-                "🌾 *Previsão de safras* e estoques nacionais\n\n"
+                "Produção agrícola por cultura e estado\n"
+                "Exportações de commodities (soja, milho, café...)\n"
+                "Histórico de produção agrícola\n"
+                "Comparativo de produção entre anos\n\n"
                 "Me faça uma pergunta! Por exemplo:\n"
-                "_Qual foi a exportação de soja em 2023?_\n"
-                "_Compare a produção de milho entre 2020 e 2023_"
-            ),
-            parse_mode="Markdown"
+                "Qual foi a produção de soja em 2022?\n"
+                "Compare a produção de milho entre 2020 e 2022"
+            )
         )
         return
 
@@ -77,8 +76,7 @@ async def handle_update(update: Update):
         resposta = await process_message(chat_id, user_message)
         await bot.send_message(
             chat_id=chat_id,
-            text=resposta,
-            parse_mode="Markdown"
+            text=resposta
         )
     except Exception as e:
         import traceback

@@ -7,8 +7,6 @@ from app.tools import (
     get_historico_precos,
     get_producao_agricola,
     comparar_producao,
-    get_safra,
-    get_estoques,
 )
 
 load_dotenv()
@@ -20,8 +18,6 @@ TOOL_MAP = {
     "get_historico_precos": get_historico_precos,
     "get_producao_agricola": get_producao_agricola,
     "comparar_producao": comparar_producao,
-    "get_safra": get_safra,
-    "get_estoques": get_estoques,
 }
 
 TOOLS = genai.protos.Tool(
