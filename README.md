@@ -34,25 +34,16 @@ O AgroBot responde perguntas em linguagem natural sobre o agronegócio brasileir
 
 ## 🏗️ Arquitetura
 
-Usuário
+Usuário → Telegram → FastAPI → Gemini 2.5 Flash (Tool Calling)
+│
+┌─────────────────┼─────────────────┐
+▼                 ▼                  ▼
+IBGE SIDRA          IBGE PAM            CONAB
+│                 │                  │
+└─────────────────┴─────────────────┘
 │
 ▼
-Telegram
-│
-▼
-FastAPI (Polling / Webhook)
-│
-▼
-Gemini 2.5 Flash (Tool Calling)
-│
-├──▶ IBGE SIDRA — produção agrícola
-├──▶ IBGE PAM   — produção por estado
-└──▶ CONAB      — safras e estoques
-│
-▼
-MySQL — cache de consultas + histórico de conversas
-
-O Gemini interpreta a pergunta do usuário, decide qual API consultar, busca os dados reais e formula uma resposta em português.
+MySQL (cache + histórico)
 
 ---
 
@@ -80,16 +71,15 @@ agro-chatbot/
 ├── .env                     # Variáveis de ambiente (não versionar)
 ├── requirements.txt         # Dependências Python
 └── app/
-├── main.py              # FastAPI + inicialização do polling/webhook
-├── bot.py               # Recebe e processa mensagens do Telegram
-├── gemini.py            # Integração com Gemini + tool calling
-├── database.py          # Conexão MySQL, histórico e cache
-└── tools/
-├── init.py      # Exporta todas as funções das ferramentas
-├── comexstat.py     # Consultas à API IBGE SIDRA
-├── ibge.py          # Produção agrícola por estado (IBGE PAM)
-└── conab.py         # Safras e estoques (CONAB)
-
+    ├── main.py              # FastAPI + inicialização do polling/webhook
+    ├── bot.py               # Recebe e processa mensagens do Telegram
+    ├── gemini.py            # Integração com Gemini + tool calling
+    ├── database.py          # Conexão MySQL, histórico e cache
+    └── tools/
+        ├── __init__.py      # Exporta todas as funções das ferramentas
+        ├── comexstat.py     # Consultas à API IBGE SIDRA
+        ├── ibge.py          # Produção agrícola por estado (IBGE PAM)
+        └── conab.py         # Safras e estoques (CONAB)
 ---
 
 ## 🗄️ Banco de dados
