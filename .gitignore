@@ -1,0 +1,19 @@
+# Variáveis de ambiente
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# Docker
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Teste
+test_ibge.py
