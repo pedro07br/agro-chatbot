@@ -65,6 +65,7 @@ MySQL (cache + histórico)
 
 ## 📁 Estrutura do projeto
 
+```
 agro-chatbot/
 ├── docker-compose.yml       # Orquestra os containers (app + MySQL)
 ├── Dockerfile               # Imagem da aplicação Python
@@ -80,6 +81,9 @@ agro-chatbot/
         ├── comexstat.py     # Consultas à API IBGE SIDRA
         ├── ibge.py          # Produção agrícola por estado (IBGE PAM)
         └── conab.py         # Safras e estoques (CONAB)
+
+```
+
 ---
 
 ## 🗄️ Banco de dados
