@@ -195,27 +195,6 @@ docker compose down -v
 
 Este projeto foi desenvolvido em colaboração com **Claude (Anthropic)**.
 
-### O que foi desenvolvido pelo autor
-- Definição da arquitetura e escolha das tecnologias
-- Escolha e validação das APIs públicas (IBGE SIDRA, CONAB)
-- Configuração do ambiente Docker e MySQL na porta 3309
-- Testes das APIs e identificação dos códigos corretos das culturas
-- Decisão das funcionalidades e escopo do chatbot
-
-### O que foi assistido por IA
-- Geração dos arquivos base (`main.py`, `bot.py`, `gemini.py`, `database.py`)
-- Estrutura do projeto e arquivos de configuração Docker
-- Implementação do tool calling com o Gemini
-- Debugging de erros de conexão, integração e compatibilidade de APIs
-- Escrita e formatação deste README
-
-### Decisões técnicas com apoio de IA
-- Uso de **polling** para desenvolvimento local e **webhook** para produção
-- Estratégia de **cache no MySQL** para otimizar chamadas às APIs públicas
-- Uso de **tool calling** do Gemini para orquestração inteligente das funções
-- Escolha da **tabela 5457 do IBGE SIDRA** após testes com múltiplos endpoints
-- Implementação de **retry automático** na conexão com MySQL para evitar falhas no startup do Docker
-
 ---
 
 ## ⚠️ Limitações conhecidas
