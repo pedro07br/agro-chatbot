@@ -13,6 +13,8 @@ load_dotenv()
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
+# mapeamento de nome da função → função real do código
+# isso é usado quando o Gemini pede pra chamar uma tool
 TOOL_MAP = {
     "get_exportacoes": get_exportacoes,
     "get_historico_precos": get_historico_precos,
@@ -20,6 +22,8 @@ TOOL_MAP = {
     "comparar_producao": comparar_producao,
 }
 
+# definição das ferramentas que o Gemini pode usar
+# aqui é tipo "ensinar" pra IA o que ela pode chamar
 TOOLS = genai.protos.Tool(
     function_declarations=[
         genai.protos.FunctionDeclaration(
@@ -137,6 +141,7 @@ TOOLS = genai.protos.Tool(
     ]
 )
 
+# prompt que define o comportamento da IA
 SYSTEM_PROMPT = """
 Você é o AgroBot, um assistente especializado em agronegócio brasileiro.
 Você tem acesso a dados reais das seguintes fontes:
@@ -157,36 +162,52 @@ Ao responder:
 
 
 async def process_message(chat_id: int, user_message: str) -> str:
+    # salva mensagem do usuário no banco
     save_message(chat_id, "user", user_message)
 
+    # pega histórico da conversa
     history = get_history(chat_id, limit=10)
 
     messages = []
+
+    # montar histórico no formato que o Gemini entende
     for msg in history[:-1]:
         role = "user" if msg["role"] == "user" else "model"
         messages.append({"role": role, "parts": [msg["message"]]})
 
+    # adiciona mensagem atual
     messages.append({"role": "user", "parts": [user_message]})
 
+    # cria modelo Gemini
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
+        model_name="gemini-2.5-flash", 
         system_instruction=SYSTEM_PROMPT,
         tools=[TOOLS],
     )
 
+    # inicia chat com histórico
     chat = model.start_chat(history=messages[:-1])
+
+    # envia mensagem do usuário
     response = await chat.send_message_async(user_message)
 
-    # Verifica se o Gemini quer chamar uma ferramenta
+    # verificar se o Gemini quer chamar alguma função
     tool_results = []
+
     for part in response.parts:
+        # se tiver chamada de função
         if hasattr(part, "function_call") and part.function_call.name:
             func_name = part.function_call.name
             func_args = dict(part.function_call.args)
-            print(f"[TOOL] Chamando {func_name} com args: {func_args}")
 
+            print(f"[TOOL] Chamando {func_name} com args: {func_args}")  # debug
+
+            # verifica se a função existe no sistema
             if func_name in TOOL_MAP:
+                # chama função real
                 resultado = await TOOL_MAP[func_name](**func_args)
+
+                # adiciona resposta da função pro Gemini
                 tool_results.append(
                     genai.protos.Part(
                         function_response=genai.protos.FunctionResponse(
@@ -196,10 +217,12 @@ async def process_message(chat_id: int, user_message: str) -> str:
                     )
                 )
 
-    # Segunda chamada com os resultados das ferramentas
+    # se alguma tool foi chamada, faz segunda chamada pro Gemini
     if tool_results:
         response = await chat.send_message_async(tool_results)
 
-    resposta = response.text
-    save_message(chat_id, "assistant", resposta)
-    return resposta
+    resposta = response.text  # resposta final da IA
+
+    save_message(chat_id, "assistant", resposta)  # salva resposta no banco
+
+    return resposta  # retorna pro bot enviar

@@ -1,8 +1,12 @@
 import httpx
 from app.database import get_cache, set_cache
 
+# URL base da API do IBGE SIDRA
 BASE_SIDRA = "https://apisidra.ibge.gov.br/values"
 
+
+# mapeamento das culturas → código que o IBGE usa internamente
+# isso aqui tive que descobrir/testar na API
 CULTURAS = {
     "soja": "40124",
     "milho": "40122",
@@ -17,7 +21,7 @@ CULTURAS = {
     "banana": "40136",
 }
 
-# Códigos dos estados brasileiros no IBGE
+# códigos dos estados no IBGE (talvez usar isso depois pra filtro)
 ESTADOS = {
     "AC": "12", "AL": "27", "AP": "16", "AM": "13", "BA": "29",
     "CE": "23", "DF": "53", "ES": "32", "GO": "52", "MA": "21",
@@ -30,10 +34,12 @@ ESTADOS = {
 
 async def get_producao_agricola(cultura: str, ano: int) -> dict:
     """
-    Retorna dados de produção agrícola de uma cultura por estado em um ano.
-    Fonte: IBGE SIDRA - Pesquisa Agrícola Municipal (PAM)
+    pega produção agrícola por estado
     """
-    ano = int(ano)
+
+    ano = int(ano)  # garantir tipo int (às vezes vem float)
+
+    # normalizar entrada do usuário
     cultura_lower = (
         cultura.lower()
         .replace(" ", "_")
@@ -42,13 +48,17 @@ async def get_producao_agricola(cultura: str, ano: int) -> dict:
         .replace("é", "e")
         .replace("á", "a")
     )
+
+    # chave do cache
     cache_key = f"ibge:estados:{cultura_lower}:{ano}"
 
     cached = get_cache(cache_key)
     if cached:
-        return cached
+        return cached  # evita chamada na API
 
+    # pegar código da cultura
     codigo = CULTURAS.get(cultura_lower)
+
     if not codigo:
         return {
             "erro": f"Cultura '{cultura}' não encontrada.",
@@ -57,10 +67,13 @@ async def get_producao_agricola(cultura: str, ano: int) -> dict:
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            # Busca por estado (N3 = estados)
+
+            # N3 = nível de estado (isso aqui é importante lembrar)
             url = f"{BASE_SIDRA}/t/5457/n3/all/v/214/p/{ano}/c782/{codigo}"
+
             response = await client.get(url)
 
+            # validação básica da resposta
             if response.status_code != 200 or not response.content:
                 return {
                     "cultura": cultura,
@@ -71,15 +84,18 @@ async def get_producao_agricola(cultura: str, ano: int) -> dict:
             dados = response.json()
 
             estados_resultado = []
+
+            # percorrer dados e filtrar valores válidos
             for item in dados:
                 if isinstance(item, dict) and item.get("V") not in ("...", "-", "", None):
                     estados_resultado.append({
-                        "estado": item.get("D1N"),
+                        "estado": item.get("D1N"),  # nome do estado
                         "quantidade": item.get("V"),
                         "unidade": item.get("MN")
                     })
 
-            # Ordena por quantidade decrescente
+            # ordenar do maior pro menor
+            # converter string tipo "1.234,56" → float
             estados_resultado.sort(
                 key=lambda x: float(x["quantidade"].replace(".", "").replace(",", "."))
                 if x["quantidade"].replace(".", "").replace(",", ".").replace("-", "").isdigit()
@@ -87,6 +103,7 @@ async def get_producao_agricola(cultura: str, ano: int) -> dict:
                 reverse=True
             )
 
+            # se não tiver dados
             if not estados_resultado:
                 return {
                     "cultura": cultura,
@@ -95,35 +112,41 @@ async def get_producao_agricola(cultura: str, ano: int) -> dict:
                     "mensagem": f"Dados de {ano} indisponíveis. Tente {ano - 1}."
                 }
 
+            # resposta final
             resultado = {
                 "cultura": cultura,
                 "ano": ano,
                 "fonte": "IBGE SIDRA - Pesquisa Agrícola Municipal (PAM)",
-                "top_estados": estados_resultado[:10],
+                "top_estados": estados_resultado[:10],  # pegar só os 10 maiores
                 "total_estados": len(estados_resultado)
             }
 
-        set_cache(cache_key, resultado, ttl_hours=12)
+        set_cache(cache_key, resultado, ttl_hours=12)  # cache maior pq não muda rápido
+
         return resultado
 
     except Exception as e:
+        # erro genérico
         return {"erro": f"Erro ao consultar IBGE SIDRA: {str(e)}"}
 
 
 async def comparar_producao(cultura: str, ano_inicio: int, ano_fim: int) -> dict:
     """
-    Compara a produção agrícola de uma cultura entre dois anos.
-    Fonte: IBGE SIDRA - Pesquisa Agrícola Municipal (PAM)
+    compara produção entre dois anos
     """
+
     ano_inicio = int(ano_inicio)
     ano_fim = int(ano_fim)
+
     cache_key = f"ibge:comparar:{cultura}:{ano_inicio}:{ano_fim}"
 
     cached = get_cache(cache_key)
     if cached:
         return cached
 
+    # normalização
     cultura_lower = cultura.lower().replace(" ", "_").replace("ç", "c").replace("ã", "a")
+
     codigo = CULTURAS.get(cultura_lower)
 
     if not codigo:
@@ -133,6 +156,7 @@ async def comparar_producao(cultura: str, ano_inicio: int, ano_fim: int) -> dict
         }
 
     try:
+        # montar anos tipo "2020,2023"
         anos = f"{ano_inicio},{ano_fim}"
 
         async with httpx.AsyncClient(timeout=30) as client:
@@ -145,6 +169,8 @@ async def comparar_producao(cultura: str, ano_inicio: int, ano_fim: int) -> dict
             dados = response.json()
 
             comparativo = {}
+
+            # montar comparação ano → valor
             for item in dados:
                 if isinstance(item, dict) and item.get("V") not in ("...", "-", "", None):
                     ano = item.get("D3N", "?")
@@ -169,6 +195,7 @@ async def comparar_producao(cultura: str, ano_inicio: int, ano_fim: int) -> dict
             }
 
         set_cache(cache_key, resultado, ttl_hours=12)
+
         return resultado
 
     except Exception as e:

@@ -8,6 +8,8 @@ load_dotenv()
 
 
 def get_connection():
+    # cria conexão com o banco usando variáveis de ambiente
+    # se não tiver variável, usa valor padrão
     return mysql.connector.connect(
         host=os.getenv("MYSQL_HOST", "db"),
         port=int(os.getenv("MYSQL_PORT", 3306)),
@@ -18,6 +20,7 @@ def get_connection():
 
 
 def wait_for_db(retries: int = 10, delay: int = 3):
+    # tenta conectar várias vezes
     for attempt in range(retries):
         try:
             conn = mysql.connector.connect(
@@ -27,8 +30,10 @@ def wait_for_db(retries: int = 10, delay: int = 3):
                 password=os.getenv("MYSQL_PASSWORD", ""),
             )
             conn.close()
+
             print("[OK] MySQL disponivel!")
             return True
+        
         except Exception as e:
             print(f"[WAIT] Aguardando MySQL... tentativa {attempt + 1}/{retries} - {e}")
             time.sleep(delay)
@@ -37,33 +42,36 @@ def wait_for_db(retries: int = 10, delay: int = 3):
 
 def init_db():
     print("[INFO] Iniciando banco de dados...")
-    wait_for_db()
+    wait_for_db() 
     print("[INFO] Conectado! Criando tabelas...")
     conn = get_connection()
 
+
 def init_db():
     """Aguarda o banco e cria as tabelas se não existirem."""
-    wait_for_db()
+    wait_for_db()  # garantir que o banco está disponível
 
     conn = get_connection()
     cursor = conn.cursor()
 
+    # tabela de conversas (histórico do chat)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS conversations (
             id          INT AUTO_INCREMENT PRIMARY KEY,
             chat_id     BIGINT       NOT NULL,
-            role        VARCHAR(20)  NOT NULL,
+            role        VARCHAR(20)  NOT NULL,  -- user ou assistant
             message     TEXT         NOT NULL,
             created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_chat_id (chat_id)
         )
     """)
 
+    # tabela de cache (guardar respostas de API)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS api_cache (
             id          INT AUTO_INCREMENT PRIMARY KEY,
-            cache_key   VARCHAR(255) NOT NULL UNIQUE,
-            response    LONGTEXT     NOT NULL,
+            cache_key   VARCHAR(255) NOT NULL UNIQUE,  -- chave única
+            response    LONGTEXT     NOT NULL,         -- resposta em JSON
             created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
             expires_at  DATETIME     NOT NULL,
             INDEX idx_cache_key (cache_key),
@@ -74,6 +82,7 @@ def init_db():
     conn.commit()
     cursor.close()
     conn.close()
+
     print("✅ Banco de dados inicializado com sucesso!")
 
 
@@ -82,38 +91,48 @@ def init_db():
 def save_message(chat_id: int, role: str, message: str):
     conn = get_connection()
     cursor = conn.cursor()
+
     cursor.execute(
         "INSERT INTO conversations (chat_id, role, message) VALUES (%s, %s, %s)",
         (chat_id, role, message)
     )
+
     conn.commit()
     cursor.close()
     conn.close()
 
 
 def get_history(chat_id: int, limit: int = 10) -> list[dict]:
+    # busca últimas mensagens do chat
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(dictionary=True)  # retorna como dict
+
     cursor.execute(
         """
         SELECT role, message FROM conversations
         WHERE chat_id = %s
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC  -- mais recentes primeiro
         LIMIT %s
         """,
         (chat_id, limit)
     )
+
     rows = cursor.fetchall()
+
     cursor.close()
     conn.close()
+
+    # inverter lista pra ficar na ordem correta (antigo → novo)
     return list(reversed(rows))
 
 
 # ─── Funções de cache ──────────────────────────────────────────────────────────
 
 def get_cache(key: str) -> dict | None:
+    # busca cache válido
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
+
     cursor.execute(
         """
         SELECT response FROM api_cache
@@ -121,28 +140,36 @@ def get_cache(key: str) -> dict | None:
         """,
         (key,)
     )
+
     row = cursor.fetchone()
+
     cursor.close()
     conn.close()
+
     if row:
+        # converter JSON string para dict
         return json.loads(row["response"])
-    return None
+
+    return None  # não encontrou ou expirou
 
 
 def set_cache(key: str, data: dict, ttl_hours: int = 6):
+    # salva ou atualiza cache no banco
     conn = get_connection()
     cursor = conn.cursor()
+
     cursor.execute(
         """
         INSERT INTO api_cache (cache_key, response, expires_at)
         VALUES (%s, %s, DATE_ADD(NOW(), INTERVAL %s HOUR))
         ON DUPLICATE KEY UPDATE
-            response   = VALUES(response),
+            response   = VALUES(response),  -- atualiza resposta
             created_at = NOW(),
             expires_at = DATE_ADD(NOW(), INTERVAL %s HOUR)
         """,
         (key, json.dumps(data), ttl_hours, ttl_hours)
     )
+
     conn.commit()
     cursor.close()
     conn.close()
